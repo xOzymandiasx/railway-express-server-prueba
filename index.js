@@ -41,6 +41,7 @@ const requestLogger = (request, response, next) => {
 };
 
 app.use(requestLogger);
+app.use(express.static('dist'));
 
 // node.js puro
 // const app = http.createServer((request, response) => {
@@ -81,6 +82,12 @@ app.post("/api/notes", (request, response) => {
   notes.concat(note);
   response.json(note);
 });
+
+app.put("/api/notes/:id", (request, response) => {
+  const {body} = request;
+  notes = notes.map(item => item.id === body.id ? body : item);
+  response.status(200).json(body);
+})
 
 app.delete("/api/notes/:id", (request, response) => {
   const id = Number(request.params.id);
