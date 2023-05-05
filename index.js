@@ -1,9 +1,13 @@
 const express = require("express");
 const cors = require("cors");
-const app = express();
+const mongoose = require("mongoose");
+const Note = require("./models/note");
 
-app.use(express.json());
-app.use(cors());
+const app = express();
+const password = "alonei";
+const { connect, Schema, model } = mongoose;
+
+const url = `mongodb+srv://caramoon:${password}@pruebas.wj9i7qy.mongodb.net/note-app?retryWrites=true`;
 
 let notes = [
   {
@@ -40,8 +44,10 @@ const requestLogger = (request, response, next) => {
   next();
 };
 
+app.use(express.json());
+app.use(cors());
 app.use(requestLogger);
-app.use(express.static('dist'));
+app.use(express.static("dist"));
 
 // node.js puro
 // const app = http.createServer((request, response) => {
@@ -49,13 +55,34 @@ app.use(express.static('dist'));
 //   response.end(JSON.stringify(notes));
 // });
 
+// Database
+connect(url);
+
+const noteSchema = new Schema({
+  content: String,
+  date: Date,
+  important: Boolean,
+});
+
+noteSchema.set("toJSON", {
+  transform: (document, returnedObject) => {
+    returnedObject.id = returnedObject._id.toString();
+    delete returnedObject._id;
+    delete returnedObject.__v;
+  },
+});
+
+const Note = model("Note", noteSchema);
+
 // Express
 app.get("/", (request, response) => {
   response.send("<h1>Hello world!</h1>");
 });
 
 app.get("/api/notes", (request, response) => {
-  response.json(notes);
+  Note.find({}).then((res) => {
+    response.status(200).json(res);
+  });
 });
 
 app.get("/api/notes/:id", (request, response) => {
@@ -84,10 +111,10 @@ app.post("/api/notes", (request, response) => {
 });
 
 app.put("/api/notes/:id", (request, response) => {
-  const {body} = request;
-  notes = notes.map(item => item.id === body.id ? body : item);
+  const { body } = request;
+  notes = notes.map((item) => (item.id === body.id ? body : item));
   response.status(200).json(body);
-})
+});
 
 app.delete("/api/notes/:id", (request, response) => {
   const id = Number(request.params.id);
