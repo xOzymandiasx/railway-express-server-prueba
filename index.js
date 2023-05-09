@@ -41,8 +41,8 @@ const requestLogger = (request, response, next) => {
   console.log("---");
   next();
 };
-
 app.use(requestLogger);
+
 
 // node.js puro
 // const app = http.createServer((request, response) => {
@@ -80,8 +80,14 @@ app.get("/api/notes", (request, response) => {
   });
 });
 
-app.get("/api/notes/:id", (request, response) => {
-  Note.findById(request.params.id).then(res => response.json(res));
+app.get("/api/notes/:id", (request, response, next) => {
+  Note.findById(request.params.id)
+   .then(res => res ? response.status(200).json(res) : response.status(404).end())
+   .catch(error => next(error));
+  //  .catch(error => {
+  //   console.log(error);
+  //   response.status(400).send({error: "Malformated id"});
+  //  });
   // const id = Number(request.params.id);
   // const note = notes.find((item) => item.id === id);
   // note ? response.json(note) : response.status(404).end();
@@ -129,8 +135,14 @@ app.delete("/api/notes/:id", (request, response) => {
 const unknowEndpoint = (request, response) => {
   response.status(404).send({ error: "unknow endpoint" });
 };
-
 app.use(unknowEndpoint);
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
+  if (error.name === "CastError") return response.status(400).send({ error: 'malformatted id' });
+  next(error);
+};
+app.use(errorHandler);
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
