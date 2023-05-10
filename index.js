@@ -3,9 +3,9 @@ const express = require("express");
 const cors = require("cors");
 const Note = require('./models/note');
 const app = express();
+app.use(express.static("dist"));
 app.use(express.json());
 app.use(cors());
-app.use(express.static("dist"));
 
 // let notes = [
 //   {
@@ -93,9 +93,9 @@ app.get("/api/notes/:id", (request, response, next) => {
   // note ? response.json(note) : response.status(404).end();
 });
 
-app.post("/api/notes", (request, response) => {
-  const body = request.body;
-  if (!body.content) {
+app.post("/api/notes", (request, response, next) => {
+  const {body} = request;
+  if (body.content === undefined) {
     return response.status(400).json({
       error: "error missing",
     });
@@ -117,19 +117,34 @@ app.post("/api/notes", (request, response) => {
     date: new Date(),
   });
 
-  note.save().then((res) => response.json(res));
+  note.save()
+   .then((res) => response.json(res))
+   .catch(error => next(error));
 });
 
-app.put("/api/notes/:id", (request, response) => {
+app.put("/api/notes/:id", (request, response, next) => {
   const { body } = request;
-  notes = notes.map((item) => (item.id === body.id ? body : item));
-  response.status(200).json(body);
+
+  const note = {
+    content: body.content,
+    important: body.important
+  };
+
+  Note.findByIdAndUpdate(request.params.id, note, {new: true})
+   .then(res => response.status(200).json(res))
+   .catch(error => next(error))
+
+  // notes = notes.map((item) => (item.id === body.id ? body : item));
+  // response.status(200).json(body);
 });
 
-app.delete("/api/notes/:id", (request, response) => {
-  const id = Number(request.params.id);
-  notes = notes.filter((item) => item.id !== id);
-  response.status(204).end();
+app.delete("/api/notes/:id", (request, response, next) => {
+  Note.findByIdAndRemove(request.params.id)
+   .then(res => response.status(204).end())
+   .catch(error => next(error));
+  // const id = Number(request.params.id);
+  // notes = notes.filter((item) => item.id !== id);
+  // response.status(204).end();
 });
 
 const unknowEndpoint = (request, response) => {
@@ -139,7 +154,9 @@ app.use(unknowEndpoint);
 
 const errorHandler = (error, request, response, next) => {
   console.error(error.message);
+  console.log("El error es:", error.name);
   if (error.name === "CastError") return response.status(400).send({ error: 'malformatted id' });
+  if (error.name === "ValidationError") return response.status(400).send({error: error.message});
   next(error);
 };
 app.use(errorHandler);
